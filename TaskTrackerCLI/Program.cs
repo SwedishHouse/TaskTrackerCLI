@@ -5,21 +5,81 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+//using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 namespace TaskTrackerCLI
 {
     public class Task
     {
-        public string Value { get; set; }
-        public string Status { get; set; }
+        public int Id { get; set; }
 
-        public Task(string value = "", string status = "")
-        {
-            Value = value;
-            Status = status;
+        private string desc;
+        public string Descriptor
+        { 
+            get
+            { 
+                return desc;
+            } 
+            set {
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    throw new ArgumentNullException("Invalid value!");
+                }
+                desc = value;
+            } 
         }
+        private enum TaskStatus
+        {
+            TODO,
+            PROGRESS,
+            DONE
+        };
+
+        private TaskStatus current_status = TaskStatus.TODO;
+
+        private readonly Dictionary<TaskStatus, string> _statusTask = new Dictionary<TaskStatus, string>
+        {
+            { TaskStatus.TODO , "todo" },
+            { TaskStatus.PROGRESS,"progress" },
+            { TaskStatus.DONE, "done" }
+        };
+        public string StatusStr {
+            get
+            {
+                return _statusTask[current_status];
+            }
+            set 
+            {
+                foreach(TaskStatus key in _statusTask.Keys)
+                {
+                    if (value == _statusTask[key])
+                    {
+                        _statusTask[key] = value;
+                        break;
+                    }
+                }
+            } 
+        }
+
+        public DateTimeOffset CreatedAt { get; }
+        public DateTimeOffset UpdatedAt { get; set; }
+        
+        //
+        public Task(int id, string desc, string status = "todo")
+        {
+            this.Id = id;
+            this.Descriptor = desc;
+            this.StatusStr = status;
+            // Сохраняем время создания
+            this.CreatedAt = this.UpdatedAt = DateTimeOffset.Now;
+        }
+
+        void Show()
+        {
+            Console.WriteLine(this.Id + " " + this.Descriptor + " " + this.StatusStr);
+        }
+
     }
 
     public class Content
@@ -27,18 +87,18 @@ namespace TaskTrackerCLI
         // Путь к файлу с задачами 
         public const string json_path = "tasks.json";
         // Хранение задач в оперативных данных
-        public Dictionary<int, Task> Tasks { get; set; }
+        public List<Task> Tasks { get; set; }
         // Список допустимых команд 
-        public Dictionary<string, Action<string[]>> Commands;
+        public Dictionary<string, Action<string[]>> Commands { get; }
+
+        
 
         public Content()
         {
-            Tasks = new Dictionary<int, Task>();
-
             if (!File.Exists(json_path))
             {
                 // Создадим пустой список для начального содержимого
-                var initialData = new Dictionary<int, Task>();
+                var initialData = new List<Task>();
                 string jsonString = JsonSerializer.Serialize(initialData, new JsonSerializerOptions { WriteIndented = true });
 
                 // Создаем файл, если он не создан
@@ -49,7 +109,7 @@ namespace TaskTrackerCLI
             string jsonContent = File.ReadAllText(json_path);
 
             // Десериализуем данные в словарь
-            Tasks = JsonSerializer.Deserialize<Dictionary<int, Task>>(jsonContent);
+            Tasks = JsonSerializer.Deserialize<List<Task>>(jsonContent);
 
             // Создаем список методов для исполнения
             this.Commands = new Dictionary<string, Action<string[]>>
@@ -57,8 +117,6 @@ namespace TaskTrackerCLI
                 {"help",  this.DisplayHelp},    //Отображение справки
                 {"add", this.Add }              // Добавление задачи
             };
-
-            
 
         }// конец конструктора
 
@@ -75,32 +133,21 @@ namespace TaskTrackerCLI
         void Add(string[] args)
         {
 
-            Task task = new Task(args[0], "todo");
-
+            Task task = new Task(this.Tasks.Count + 1, args[0], "todo");
             try
             {
-                this.Tasks.Add(this.Tasks.Count + 1, task);
+                this.Tasks.Add(task);
             }
-            catch {
+            catch
+            {
                 Console.WriteLine("Some exception!");
             }
-            
-
         }
-
-
     }
 
-         
+
     class Program
     {
-        
-
-
-
-        
-
-
         static void Main(string[] args)
         {
             // Форматируем шапку программы
@@ -113,7 +160,7 @@ namespace TaskTrackerCLI
             Content content = new();
 
             string command = args[0];
-           
+
             // Извлекаем остальные аргументы
             string[] commandArgs = args.Skip(1).ToArray();
 
@@ -127,8 +174,6 @@ namespace TaskTrackerCLI
                 Console.WriteLine($"Неизвестная команда: {command}");
                 content.DisplayHelp(commandArgs);
             }
-
-
         }
     }
 }
