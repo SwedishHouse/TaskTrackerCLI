@@ -17,12 +17,11 @@ namespace Test
             const string desc = "foo";
             for (int i = 0; i < tasks.Length; i++)
             {
-                tasks[i] = new TaskTrackerCLI.Task(i, desc);
+                tasks[i] = new TaskTrackerCLI.Task(i, desc, "todo");
 
-                Assert.AreEqual(i, tasks[i].Id);
+                Assert.That(i, Is.EqualTo(tasks[i].Id));
             }
         }
-
         
         [Test]
         // Проверка ввода валидного описания задачи. При получении пустого описания должно генерироваться исключение
@@ -36,7 +35,7 @@ namespace Test
             {
                 TaskTrackerCLI.Task task;
                 try {
-                    task = new TaskTrackerCLI.Task(i, descs[i]);
+                    task = new TaskTrackerCLI.Task(i, descs[i], "todo");
                 }
                 catch (ArgumentNullException e) {
                     continue;
@@ -50,7 +49,7 @@ namespace Test
                 if (desc == "")
                     continue;
                 // Проверим описание задач
-                Assert.That(tasks[counter++].Descriptor == desc);
+                Assert.That(tasks[counter++].Desc == desc);
             }
 
             Assert.That(counter == tasks.Count);

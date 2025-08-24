@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -10,74 +11,69 @@ using System.Text.Json;
 
 namespace TaskTrackerCLI
 {
+    
     public class Task
     {
-        public int Id { get; set; }
-
-        private string desc;
-        public string Descriptor
+        private int id;
+        public int Id 
         { 
-            get
-            { 
-                return desc;
+            get => id;
+            set
+            {
+                if (value < 0) throw new ArgumentOutOfRangeException("Value must be positive");
+                this.id = value;
             } 
-            set {
+        }
+
+        private string desc = "";
+
+        public string Desc
+        { 
+            get => desc;
+            set 
+            {
                 if (string.IsNullOrWhiteSpace(value))
                 {
                     throw new ArgumentNullException("Invalid value!");
                 }
-                desc = value;
+                this.desc = value;
             } 
         }
-        private enum TaskStatus
+
+        private readonly HashSet<string> _statusTasks = new HashSet<string>
         {
-            TODO,
-            PROGRESS,
-            DONE
+           "todo",
+           "progress",
+           "done" 
         };
 
-        private TaskStatus current_status = TaskStatus.TODO;
-
-        private readonly Dictionary<TaskStatus, string> _statusTask = new Dictionary<TaskStatus, string>
-        {
-            { TaskStatus.TODO , "todo" },
-            { TaskStatus.PROGRESS,"progress" },
-            { TaskStatus.DONE, "done" }
-        };
+        private string _status;
         public string StatusStr {
-            get
-            {
-                return _statusTask[current_status];
-            }
+            get => _status;
             set 
             {
-                foreach(TaskStatus key in _statusTask.Keys)
-                {
-                    if (value == _statusTask[key])
-                    {
-                        _statusTask[key] = value;
-                        break;
-                    }
-                }
+                if (!this._statusTasks.Contains(value))
+                    throw new ArgumentException($"Values must be {this._statusTasks.ToString()}.\n\r But has {value}!!!");
+                this._status = value;
             } 
         }
 
-        public DateTimeOffset CreatedAt { get; }
+        public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
         
         //
-        public Task(int id, string desc, string status = "todo")
+        public Task(int id, string descriptor, string status)
         {
             this.Id = id;
-            this.Descriptor = desc;
+            this.Desc = descriptor;
             this.StatusStr = status;
             // Сохраняем время создания
             this.CreatedAt = this.UpdatedAt = DateTimeOffset.Now;
         }
 
-        void Show()
+        public override string ToString()
         {
-            Console.WriteLine(this.Id + " " + this.Descriptor + " " + this.StatusStr);
+            return $"{this.Id} {this.Desc} {this.StatusStr}";
         }
 
     }
@@ -85,21 +81,23 @@ namespace TaskTrackerCLI
     public class Content
     {
         // Путь к файлу с задачами 
-        public const string json_path = "tasks.json";
+        private readonly string json_path = "tasks.json";
         // Хранение задач в оперативных данных
         public List<Task> Tasks { get; set; }
         // Список допустимых команд 
         public Dictionary<string, Action<string[]>> Commands { get; }
+        private readonly JsonSerializerOptions opt;
 
-        
-
-        public Content()
+        public Content(string path)
         {
+            json_path = path;
+            this.opt = new JsonSerializerOptions { WriteIndented = true };
+
             if (!File.Exists(json_path))
             {
                 // Создадим пустой список для начального содержимого
                 var initialData = new List<Task>();
-                string jsonString = JsonSerializer.Serialize(initialData, new JsonSerializerOptions { WriteIndented = true });
+                string jsonString = JsonSerializer.Serialize(initialData, opt);
 
                 // Создаем файл, если он не создан
                 File.WriteAllText(json_path, jsonString);
@@ -115,9 +113,14 @@ namespace TaskTrackerCLI
             this.Commands = new Dictionary<string, Action<string[]>>
             {
                 {"help",  this.DisplayHelp},    //Отображение справки
-                {"add", this.Add }              // Добавление задачи
+                {"add", this.Add },             // Добавление задачи
+                {"delete", this.Delete },        // Удаление задачи
+                {"list", this.List }        // Удаление задачи
             };
+        }
 
+        public Content() : this("tasks.json")
+        {
         }// конец конструктора
 
         public void DisplayHelp(string[] args)
@@ -132,16 +135,35 @@ namespace TaskTrackerCLI
 
         void Add(string[] args)
         {
-
-            Task task = new Task(this.Tasks.Count + 1, args[0], "todo");
+            Task task = new(this.Tasks.Count + 1, args[0], "todo");
             try
             {
                 this.Tasks.Add(task);
+                string jsonString = JsonSerializer.Serialize<List<Task>>(this.Tasks, this.opt);
+
+                File.WriteAllText(this.json_path, jsonString);
             }
             catch
             {
                 Console.WriteLine("Some exception!");
             }
+        }
+
+        void Delete(string[] args)
+        {
+
+        }
+
+        void List(string[] args)
+        {
+            if (args.Length == 0)
+            {
+                foreach (Task task in this.Tasks)
+                {
+                    Console.WriteLine(task.ToString());
+                }
+            }
+
         }
     }
 
