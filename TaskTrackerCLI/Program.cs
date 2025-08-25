@@ -1,12 +1,5 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Data.Common;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.Json;
-//using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 namespace TaskTrackerCLI
@@ -60,9 +53,9 @@ namespace TaskTrackerCLI
 
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset UpdatedAt { get; set; }
-        
+
         //
-        public Task(int id, string descriptor, string status)
+        public Task(int id, string descriptor, string status="todo")
         {
             this.Id = id;
             this.Desc = descriptor;
@@ -114,8 +107,8 @@ namespace TaskTrackerCLI
             {
                 {"help",  this.DisplayHelp},    //Отображение справки
                 {"add", this.Add },             // Добавление задачи
-                {"delete", this.Delete },        // Удаление задачи
-                {"list", this.List }        // Удаление задачи
+                {"delete", this.Delete },       // Удаление задачи
+                {"list", this.List }            // Удаление задачи
             };
         }
 
